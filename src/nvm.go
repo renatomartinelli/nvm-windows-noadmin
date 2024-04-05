@@ -79,9 +79,9 @@ func main() {
 	if len(args) > 2 {
 		detail = args[2]
 	}
-	if len(args) > 3 {
-		if args[3] == "32" || args[3] == "64" {
-			procarch = args[3]
+	if len(args) > 4 {
+		if args[4] == "32" || args[4] == "64" {
+			procarch = args[4]
 		}
 	}
 	if len(args) < 2 {
@@ -100,7 +100,11 @@ func main() {
 	case "uninstall":
 		uninstall(detail)
 	case "use":
-		use(detail, procarch)
+		link_type := "/J"
+		if len(args) > 3 && args[3] == "-D" {
+			link_type = "/D"
+		}
+		use(detail, procarch, link_type)
 	case "list":
 		list(detail)
 	case "ls":
@@ -718,7 +722,7 @@ func accessDenied(err error) bool {
 	return false
 }
 
-func use(version string, cpuarch string, reload ...bool) {
+func use(version string, cpuarch string, link_type string, reload ...bool) {
 	version, cpuarch, err := getVersion(version, cpuarch, true)
 
 	if err != nil {
@@ -765,7 +769,7 @@ func use(version string, cpuarch string, reload ...bool) {
 	// Create new symlink
 	var ok bool
 	// ok, err = runElevated(fmt.Sprintf(`"%s" cmd /C mklink /J "%s" "%s"`, filepath.Join(env.root, "elevate.cmd"), filepath.Clean(env.symlink), filepath.Join(env.root, "v"+version)))
-	ok, err = elevatedRun("mklink", "/J", filepath.Clean(env.symlink), filepath.Join(env.root, "v"+version))
+	ok, err = elevatedRun("mklink", link_type, filepath.Clean(env.symlink), filepath.Join(env.root, "v"+version))
 	if err != nil {
 		if strings.Contains(err.Error(), "not have sufficient privilege") || strings.Contains(strings.ToLower(err.Error()), "access is denied") {
 			// cmd := exec.Command(filepath.Join(env.root, "elevate.cmd"), "cmd", "/C", "mklink", "/J", filepath.Clean(env.symlink), filepath.Join(env.root, "v"+version))
@@ -774,7 +778,7 @@ func use(version string, cpuarch string, reload ...bool) {
 			// cmd.Stdout = &output
 			// cmd.Stderr = &_stderr
 			// perr := cmd.Run()
-			ok, err = elevatedRun("mklink", "/J", filepath.Clean(env.symlink), filepath.Join(env.root, "v"+version))
+			ok, err = elevatedRun("mklink", link_type, filepath.Clean(env.symlink), filepath.Join(env.root, "v"+version))
 
 			if err != nil {
 				ok = false
@@ -792,7 +796,7 @@ func use(version string, cpuarch string, reload ...bool) {
 			if err != nil {
 				fmt.Println(fmt.Sprint(err))
 			} else if reloadable {
-				use(version, cpuarch, false)
+				use(version, cpuarch, link_type, false)
 				return
 			}
 		} else {
@@ -944,7 +948,7 @@ func enable() {
 	}
 	fmt.Println("nvm enabled")
 	if dir != "" {
-		use(strings.Trim(regexp.MustCompile("v").ReplaceAllString(dir, ""), " \n\r"), env.arch)
+		use(strings.Trim(regexp.MustCompile("v").ReplaceAllString(dir, ""), " \n\r"), "/C", env.arch)
 	} else {
 		fmt.Println("No versions of node.js found. Try installing the latest by typing nvm install latest")
 	}
@@ -1229,28 +1233,29 @@ func help() {
 	fmt.Println("\nRunning version " + NvmVersion + ".")
 	fmt.Println("\nUsage:")
 	fmt.Println(" ")
-	fmt.Println("  nvm arch                     : Show if node is running in 32 or 64 bit mode.")
-	fmt.Println("  nvm current                  : Display active version.")
-	fmt.Println("  nvm debug                    : Check the NVM4W process for known problems (troubleshooter).")
-	fmt.Println("  nvm install <version> [arch] : The version can be a specific version, \"latest\" for the latest current version, or \"lts\" for the")
-	fmt.Println("                                 most recent LTS version. Optionally specify whether to install the 32 or 64 bit version (defaults")
-	fmt.Println("                                 to system arch). Set [arch] to \"all\" to install 32 AND 64 bit versions.")
-	fmt.Println("                                 Add --insecure to the end of this command to bypass SSL validation of the remote download server.")
-	fmt.Println("  nvm list [available]         : List the node.js installations. Type \"available\" at the end to see what can be installed. Aliased as ls.")
-	fmt.Println("  nvm on                       : Enable node.js version management.")
-	fmt.Println("  nvm off                      : Disable node.js version management.")
-	fmt.Println("  nvm proxy [url]              : Set a proxy to use for downloads. Leave [url] blank to see the current proxy.")
-	fmt.Println("                                 Set [url] to \"none\" to remove the proxy.")
-	fmt.Println("  nvm node_mirror [url]        : Set the node mirror. Defaults to https://nodejs.org/dist/. Leave [url] blank to use default url.")
-	fmt.Println("  nvm npm_mirror [url]         : Set the npm mirror. Defaults to https://github.com/npm/cli/archive/. Leave [url] blank to default url.")
-	fmt.Println("  nvm uninstall <version>      : The version must be a specific version.")
+	fmt.Println("  nvm arch                                : Show if node is running in 32 or 64 bit mode.")
+	fmt.Println("  nvm current                             : Display active version.")
+	fmt.Println("  nvm debug                               : Check the NVM4W process for known problems (troubleshooter).")
+	fmt.Println("  nvm install <version> [arch]            : The version can be a specific version, \"latest\" for the latest current version, or \"lts\" for the")
+	fmt.Println("                                            most recent LTS version. Optionally specify whether to install the 32 or 64 bit version (defaults")
+	fmt.Println("                                            to system arch). Set [arch] to \"all\" to install 32 AND 64 bit versions.")
+	fmt.Println("                                            Add --insecure to the end of this command to bypass SSL validation of the remote download server.")
+	fmt.Println("  nvm list [available]                    : List the node.js installations. Type \"available\" at the end to see what can be installed. Aliased as ls.")
+	fmt.Println("  nvm on                                  : Enable node.js version management.")
+	fmt.Println("  nvm off                                 : Disable node.js version management.")
+	fmt.Println("  nvm proxy [url]                         : Set a proxy to use for downloads. Leave [url] blank to see the current proxy.")
+	fmt.Println("                                            Set [url] to \"none\" to remove the proxy.")
+	fmt.Println("  nvm node_mirror [url]                   : Set the node mirror. Defaults to https://nodejs.org/dist/. Leave [url] blank to use default url.")
+	fmt.Println("  nvm npm_mirror [url]                    : Set the npm mirror. Defaults to https://github.com/npm/cli/archive/. Leave [url] blank to default url.")
+	fmt.Println("  nvm uninstall <version>                 : The version must be a specific version.")
 	//  fmt.Println("  nvm update                   : Automatically update nvm to the latest version.")
-	fmt.Println("  nvm use [version] [arch]     : Switch to use the specified version. Optionally use \"latest\", \"lts\", or \"newest\".")
-	fmt.Println("                                 \"newest\" is the latest installed version. Optionally specify 32/64bit architecture.")
-	fmt.Println("                                 nvm use <arch> will continue using the selected version, but switch to 32/64 bit mode.")
-	fmt.Println("  nvm root [path]              : Set the directory where nvm should store different versions of node.js.")
-	fmt.Println("                                 If <path> is not set, the current root will be displayed.")
-	fmt.Println("  nvm [--]version              : Displays the current running version of nvm for Windows. Aliased as v.")
+	fmt.Println("  nvm use [version] [link type] [arch]    : Switch to use the specified version. Optionally use \"latest\", \"lts\", or \"newest\".")
+	fmt.Println("                                            \"newest\" is the latest installed version. Optionally specify 32/64bit architecture.")
+	fmt.Println("                                            nvm use <arch> will continue using the selected version, but switch to 32/64 bit mode.")
+	fmt.Println("                                            Optionally use link type as -D or -J to specify if you want a junction link or a symbolic link with -D. default is J for junction")
+	fmt.Println("  nvm root [path]                         : Set the directory where nvm should store different versions of node.js.")
+	fmt.Println("                                            If <path> is not set, the current root will be displayed.")
+	fmt.Println("  nvm [--]version                         : Displays the current running version of nvm for Windows. Aliased as v.")
 	fmt.Println(" ")
 }
 
